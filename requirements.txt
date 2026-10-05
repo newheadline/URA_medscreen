@@ -1,0 +1,17 @@
+fastapi>=0.110
+uvicorn[standard]
+pydantic>=2.6
+pydantic-settings
+sqlalchemy>=2.0
+psycopg[binary]>=3.1
+cryptography
+httpx
+# dev
+pytest
+pandas
+openpyxl
+pyjwt>=2.8
+scikit-learn
+catboost
+numpy
+joblib

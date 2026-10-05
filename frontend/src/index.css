@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* Токены в именах shadcn/ui — компоненты из `npx shadcn add` лягут без правок */
+:root {
+  --background: oklch(0.985 0.003 230);
+  --foreground: oklch(0.22 0.02 250);
+  --card: oklch(1 0 0);
+  --muted: oklch(0.96 0.006 230);
+  --muted-foreground: oklch(0.52 0.02 250);
+  --border: oklch(0.92 0.01 240);
+  --primary: oklch(0.55 0.11 195);
+  --primary-foreground: oklch(0.99 0 0);
+  --destructive: oklch(0.58 0.2 25);
+  --ring: oklch(0.55 0.11 195 / 0.45);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-destructive: var(--destructive);
+  --color-ring: var(--ring);
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── 3D-столбец вероятности: лицевая грань + верх + правый бок на чистом CSS ── */
+.col3d {
+  --d: 16px;
+  position: relative;
+  width: 52px;
+  height: 100%;
+  border-radius: 2px 0 0 0;
+  background: linear-gradient(90deg,
+    color-mix(in oklab, var(--c) 82%, white) 0%,
+    var(--c) 48%,
+    color-mix(in oklab, var(--c) 88%, black) 100%);
+}
+.col3d::before {
+  content: '';
+  position: absolute; left: 0; bottom: 100%;
+  width: 100%; height: var(--d);
+  background: color-mix(in oklab, var(--c) 62%, white);
+  transform-origin: bottom left;
+  transform: skewX(-45deg);
+}
+.col3d::after {
+  content: '';
+  position: absolute; left: 100%; top: 0;
+  width: var(--d); height: 100%;
+  background: color-mix(in oklab, var(--c) 66%, black);
+  transform-origin: top left;
+  transform: skewY(-45deg);
+}

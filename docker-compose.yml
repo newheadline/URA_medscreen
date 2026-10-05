@@ -1,0 +1,119 @@
+
+services:
+  # ─────────────────────────────── БАЗЫ ДАННЫХ ───────────────────────────────
+
+  vault-db:
+    image: postgres:16
+    container_name: medscreen_vault_db
+    environment:
+      POSTGRES_USER: vault_user
+      POSTGRES_PASSWORD: MY_SECURE_PASSWORD_1
+      POSTGRES_DB: vault
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - vault_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vault_user -d vault"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  intake-db:
+    image: postgres:16
+    container_name: medscreen_intake_db
+    restart: always
+    environment:
+      POSTGRES_USER: intake_user
+      POSTGRES_PASSWORD: MY_SECURE_PASSWORD_2
+      POSTGRES_DB: medscreen_intake
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - intake_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U intake_user -d medscreen_intake"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ─────────────────────────────── КОНТУР DEID ───────────────────────────────
+
+  deid:
+    build:
+      context: .
+      dockerfile: deid/Dockerfile
+    container_name: medscreen_deid
+    env_file:
+      - .env                      # vault_enc_key, service_api_key, analysis_api_key
+    environment:
+      # ПЕРЕОПРЕДЕЛЯЕМ хостовые адреса на docker-сеть:
+      VAULT_DB_URL: postgresql+psycopg://vault_user:MY_SECURE_PASSWORD_1@vault-db:5432/vault
+      ANALYSIS_URL: http://analysis:8002
+    ports:
+      - "127.0.0.1:8001:8001"
+    depends_on:
+      vault-db:
+        condition: service_healthy
+      analysis:
+        condition: service_started
+    command: uvicorn deid.main:app --host 0.0.0.0 --port 8001
+
+  # ───────────────────────────── КОНТУР ANALYSIS ─────────────────────────────
+
+  analysis:
+    build:
+      context: .
+      dockerfile: analysis/Dockerfile
+    container_name: medscreen_analysis
+    env_file:
+      - analysis/.env             # analysis_api_key, model_backend
+    ports:
+      - "127.0.0.1:8002:8002"
+    command: uvicorn analysis.main:app --host 0.0.0.0 --port 8002
+
+  # ────────────────────────────── КОНТУР INTAKE ──────────────────────────────
+
+  intake:
+    build:
+      context: .
+      dockerfile: intake/Dockerfile
+    container_name: medscreen_intake
+    env_file:
+      - intake/.env               # data_master_key, deid_api_key, cors_origins
+    environment:
+      DATABASE_URL: postgresql+psycopg://intake_user:MY_SECURE_PASSWORD_2@intake-db:5432/medscreen_intake
+      DEID_URL: http://deid:8001
+      CORS_ORIGINS: http://localhost:5173     # подставьте свой фронт
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      intake-db:
+        condition: service_healthy
+      deid:
+        condition: service_started
+    command: uvicorn intake.main:app --host 0.0.0.0 --port 8000
+
+  # ───────────────────────────── ВОРКЕР INTAKE ───────────────────────────────
+
+  worker:
+    build:
+      context: .
+      dockerfile: intake/Dockerfile      # тот же образ, что и intake
+    container_name: medscreen_worker
+    env_file:
+      - intake/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://intake_user:MY_SECURE_PASSWORD_2@intake-db:5432/medscreen_intake
+      DEID_URL: http://deid:8001
+    depends_on:
+      intake-db:
+        condition: service_healthy
+      deid:
+        condition: service_started
+    command: python -m intake.worker
+
+volumes:
+  vault_data:
+  intake_data:

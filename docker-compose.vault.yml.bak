@@ -1,0 +1,14 @@
+# Отдельная БД хранилища соответствий (только для сервиса обезличивания)
+services:
+  vault-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: vault_user
+      POSTGRES_PASSWORD: CHANGE_ME
+      POSTGRES_DB: vault
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - vault_data:/var/lib/postgresql/data
+volumes:
+  vault_data:
